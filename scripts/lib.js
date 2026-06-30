@@ -173,11 +173,61 @@
     return { ready: true, origin: location.origin };
   }
 
+  function _err(e) { return String((e && e.message) || e); }
+
+  async function searchTrademarks(a) {
+    a = a || {};
+    try {
+      const data = await api("trademark", buildTrademarkParams(a), { next: a.offset || 0, limit: a.limit || 20 });
+      return formatSearchResult(data.payload || {});
+    } catch (e) { return { error: _err(e), total: 0, items: [] }; }
+  }
+
+  async function getTrademarkDetails(applicationNumber) {
+    try {
+      const data = await api("trademark-file", { id: applicationNumber });
+      return redactSafe(stripBase64((data.payload && data.payload.item) || {}));
+    } catch (e) { return { error: _err(e) }; }
+  }
+
+  async function searchPatents(a) {
+    a = a || {};
+    try {
+      const data = await api("patent", buildPatentParams(a), { next: a.offset || 0, limit: a.limit || 20 });
+      return formatSearchResult(data.payload || {});
+    } catch (e) { return { error: _err(e), total: 0, items: [] }; }
+  }
+
+  async function getPatentDetails(applicationNumber) {
+    try {
+      const data = await api("patent-file", { id: applicationNumber });
+      return redactSafe(stripBase64((data.payload && data.payload.item) || {}));
+    } catch (e) { return { error: _err(e) }; }
+  }
+
+  async function searchDesigns(a) {
+    a = a || {};
+    try {
+      const data = await api("design", buildDesignParams(a), { next: a.offset || 0, limit: a.limit || 20 });
+      return formatSearchResult(data.payload || {});
+    } catch (e) { return { error: _err(e), total: 0, items: [] }; }
+  }
+
+  async function getDesignDetails(fileId) {
+    try {
+      const data = await api("design-file", { id: fileId });
+      return redactSafe(stripBase64((data.payload && data.payload.item) || {}));
+    } catch (e) { return { error: _err(e) }; }
+  }
+
   return {
     SITE_KEY, ORIGIN, API_URL, RESEARCH_PAGE,
     SEARCH_TEXT_OPTION_MAP, HOLDER_NAME_OPTION_MAP,
     buildTrademarkParams, buildPatentParams, buildDesignParams,
     stripBase64, formatSearchResult, redactSafe,
     mintToken, api, waitReady,
+    searchTrademarks, getTrademarkDetails,
+    searchPatents, getPatentDetails,
+    searchDesigns, getDesignDetails,
   };
 });
