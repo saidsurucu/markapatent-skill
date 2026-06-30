@@ -60,9 +60,63 @@
     };
   }
 
+  function stripBase64(obj) {
+    if (Array.isArray(obj)) {
+      for (const item of obj) stripBase64(item);
+      return obj;
+    }
+    if (obj && typeof obj === "object") {
+      for (const key of Object.keys(obj)) {
+        const value = obj[key];
+        if (typeof value === "string" && value.length > 500 &&
+            (value.startsWith("data:image") || value.startsWith("/9j/") || value.startsWith("iVBOR"))) {
+          obj[key] = "[base64 image data omitted]";
+        } else if ((key === "figure" || key === "data") && typeof value === "string" && value.length > 500) {
+          obj[key] = "[base64 image data omitted]";
+        } else {
+          stripBase64(value);
+        }
+      }
+    }
+    return obj;
+  }
+
+  function formatSearchResult(payload) {
+    payload = payload || {};
+    const items = payload.items || [];
+    for (const item of items) {
+      if (item && typeof item.image === "object" && item.image && item.image.data) {
+        item.image.data = "[base64 omitted]";
+      }
+    }
+    return {
+      total: payload.total != null ? payload.total : items.length,
+      items,
+      fields: payload.fields || [],
+    };
+  }
+
+  function redactSafe(obj) {
+    if (Array.isArray(obj)) { for (const item of obj) redactSafe(item); return obj; }
+    if (obj && typeof obj === "object") {
+      for (const key of Object.keys(obj)) {
+        redactSafe(obj[key]);
+        if (/author/i.test(key)) {
+          const neutral = key.replace(/author/gi, "kisi");
+          if (neutral !== key && !(neutral in obj)) {
+            obj[neutral] = obj[key];
+            delete obj[key];
+          }
+        }
+      }
+    }
+    return obj;
+  }
+
   return {
     SITE_KEY, ORIGIN, API_URL, RESEARCH_PAGE,
     SEARCH_TEXT_OPTION_MAP, HOLDER_NAME_OPTION_MAP,
     buildTrademarkParams, buildPatentParams, buildDesignParams,
+    stripBase64, formatSearchResult, redactSafe,
   };
 });
