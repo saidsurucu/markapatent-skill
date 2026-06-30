@@ -59,3 +59,10 @@ added in `lib.js` — not needed today.
   `markInformation/niceInformation/dossierInformation`.
 - `javascript_tool` contract: REPL semantics — top-level `await` works; end with
   `await window.__MP.<fn>(...)`.
+- All three search types verified live via the installed skill: trademark
+  `"Apple"` → 712, patent `applicant:"ASELSAN"` → 1131, design `"masa"` → 11398.
+  `limit`/`offset` honored (limit 5→5, 50→50; offset 20 → next page). Note: the
+  server falls back to the default page size (20) for very small limits (< ~5).
+- Inject the module and call in **separate** `javascript_tool` calls; a single
+  injection carrying both the full module source and a trailing top-level
+  `await ...` round-trip can fail to dispatch.
