@@ -113,10 +113,71 @@
     return obj;
   }
 
+  async function mintToken() {
+    await new Promise((res) => grecaptcha.ready(res));
+    return grecaptcha.execute(SITE_KEY, { action: "research_form" });
+  }
+
+  async function api(type, params, opts) {
+    opts = opts || {};
+    const next = opts.next || 0;
+    const limit = opts.limit || 20;
+    const order = opts.order != null ? opts.order : null;
+    let lastErr = null;
+    for (let attempt = 1; attempt <= 5; attempt++) {
+      const token = await mintToken();
+      const body = JSON.stringify({ type, params, next, limit, order, token });
+      const ctrl = new AbortController();
+      const timer = setTimeout(() => ctrl.abort(), 30000);
+      let resp, text;
+      try {
+        resp = await fetch(API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body,
+          signal: ctrl.signal,
+        });
+        text = await resp.text();
+      } finally {
+        clearTimeout(timer);
+      }
+      let data = null;
+      try { data = JSON.parse(text); } catch (e) { data = null; }
+      if (!resp.ok) {
+        const code = data && data.error && data.error.code;
+        if (resp.status === 500 && code === "INVALID_CREDENTIALS") {
+          lastErr = data;
+          continue;
+        }
+        throw new Error("API HTTP " + resp.status + ": " + (text || "").slice(0, 300));
+      }
+      if (!data || data.success !== true) {
+        throw new Error("API success=false: " + (text || "no body").slice(0, 300));
+      }
+      return data;
+    }
+    throw new Error("API failed after 5 attempts: " + JSON.stringify(lastErr));
+  }
+
+  async function waitReady(timeoutMs) {
+    timeoutMs = timeoutMs || 12000;
+    const ready = () => location.origin === ORIGIN && typeof grecaptcha !== "undefined";
+    const start = Date.now();
+    while (!ready()) {
+      if (Date.now() - start > timeoutMs) {
+        return { ready: false, origin: location.origin, hasGrecaptcha: typeof grecaptcha !== "undefined" };
+      }
+      await new Promise((r) => setTimeout(r, 500));
+    }
+    await new Promise((res) => grecaptcha.ready(res));
+    return { ready: true, origin: location.origin };
+  }
+
   return {
     SITE_KEY, ORIGIN, API_URL, RESEARCH_PAGE,
     SEARCH_TEXT_OPTION_MAP, HOLDER_NAME_OPTION_MAP,
     buildTrademarkParams, buildPatentParams, buildDesignParams,
     stripBase64, formatSearchResult, redactSafe,
+    mintToken, api, waitReady,
   };
 });
